@@ -28,7 +28,8 @@ main{max-width:1240px;margin:0 auto;padding:32px 22px 55px}.hero{background:radi
 <script>
 const SUPABASE_URL="https://ufrsbskwjzlsvvxuciox.supabase.co";
 const SUPABASE_KEY="sb_publishable_oDZnVdHGu8rgUXmnsnJFQw_-uvWpdSX";
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let db=null; function getDb(){ if(!db && window.supabase?.createClient){ db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); } return db; }
+function requireDb(){const c=getDb();if(!c){toast("Supabase is not available. Please check your internet connection and reload.");return null}return c}
 const START="2026-11-04",END="2026-11-18";
 const HOLIDAYS={"2026-11-10":"Holiday","2026-11-11":"Holiday","2026-11-14":"Weekend Holiday","2026-11-15":"Weekend Holiday"};
 const valid=(()=>{let a=[],d=new Date(START+"T00:00:00"),e=new Date(END+"T00:00:00");while(d<=e){a.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1)}return a})();
@@ -72,8 +73,9 @@ async function submitLeave(){
  if(name.length<2)return toast("Please enter your full name.");
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return toast("Please enter a valid official email ID.");
  if(!selected.size)return toast("Please select at least one leave date.");
- const {error}=await db.from("diwali_leave_submissions").insert({full_name:name,official_email:email,leave_days:[...selected].sort(),note:note||null});
- if(error){console.error(error);return toast("Submission failed. Please try again.");}
+ const client=requireDb(); if(!client)return;
+ const {error}=await client.from("diwali_leave_submissions").insert({full_name:name,official_email:email,leave_days:[...selected].sort(),note:note||null});
+ if(error){console.error(error);return toast("Submission failed: "+error.message);}
  toast("🪔 Leave request submitted successfully.");
  selected.clear();renderEmployee();
  document.getElementById("status").innerHTML="<div style='padding:14px;border-radius:14px;background:#edf9f1;color:#176b3c;border:1px solid #bfe7cd'><b>✓ Submitted successfully</b><br>Your leave request is stored in the HYOSUNG system.</div>";
@@ -83,10 +85,11 @@ function adminLoginView(){document.getElementById("root").innerHTML=`<div class=
 async function adminLogin(){
  const email=document.getElementById("ae").value.trim(),password=document.getElementById("ap").value;
  if(!email||!password)return toast("Enter admin email and password.");
- const {data,error}=await db.auth.signInWithPassword({email,password});
+ const client=requireDb(); if(!client)return;
+ const {data,error}=await client.auth.signInWithPassword({email,password});
  if(error)return toast(error.message);
- const p=await db.from("profiles").select("role").eq("id",data.user.id).single();
- if(p.error||p.data.role!=="admin"){await db.auth.signOut();return toast("This account is not configured as an admin.");}
+ const p=await client.from("profiles").select("role").eq("id",data.user.id).single();
+ if(p.error||p.data.role!=="admin"){await client.auth.signOut();return toast("This account is not configured as an admin.");}
  renderAdmin();
 }
 async function renderAdmin(){
@@ -95,14 +98,14 @@ async function renderAdmin(){
  <div class="stats"><div class="stat"><b id="people">—</b><span>Employees submitted</span></div><div class="stat"><b id="days">—</b><span>Total leave days</span></div><div class="stat"><b id="dates">—</b><span>Leave dates used</span></div></div></div>
  <div class="card" style="margin-top:22px"><h2>Employee Submissions</h2><div class="sub">Name • official email • selected dates • notes</div><div class="tablewrap"><table class="table"><thead><tr><th>Name</th><th>Official Email</th><th>Days</th><th>Selected Dates</th><th>Notes</th><th>Submitted</th></tr></thead><tbody id="ar"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div></div>
  </main></div>`;
- const r=await db.from("diwali_leave_submissions").select("*").order("created_at",{ascending:false});
- if(r.error){toast("Could not load submissions.");return}
+ const client=requireDb(); if(!client)return; const r=await client.from("diwali_leave_submissions").select("*").order("created_at",{ascending:false});
+ if(r.error){toast("Could not load submissions: "+r.error.message);return}
  rows=r.data||[];let total=rows.reduce((s,x)=>s+(x.leave_days||[]).length,0),u=new Set(rows.flatMap(x=>x.leave_days||[]));
  document.getElementById("people").textContent=rows.length;document.getElementById("days").textContent=total;document.getElementById("dates").textContent=u.size;
  document.getElementById("ar").innerHTML=rows.length?rows.map(x=>`<tr><td><b>${esc(x.full_name)}</b></td><td>${esc(x.official_email)}</td><td><span class="pill">${(x.leave_days||[]).length}</span></td><td>${(x.leave_days||[]).slice().sort().map(fmt).join(", ")}</td><td>${esc(x.note||"—")}</td><td>${new Date(x.created_at).toLocaleString("en-IN")}</td></tr>`).join(""):`<tr><td colspan="6" class="empty">No submissions yet.</td></tr>`;
 }
 function exportCSV(){if(!rows.length)return toast("No submissions to export.");let head=["Name","Official Email","Leave Days","Selected Dates","Notes","Submitted At"],body=rows.map(x=>[x.full_name,x.official_email,(x.leave_days||[]).length,(x.leave_days||[]).slice().sort().join(" | "),x.note||"",new Date(x.created_at).toLocaleString("en-IN")]);let csv=[head,...body].map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="hyosung-diwali-leave-2026.csv";a.click();URL.revokeObjectURL(a.href)}
-async function adminLogout(){await db.auth.signOut();rows=[];renderEmployee()}
+async function adminLogout(){const client=requireDb(); if(client) await client.auth.signOut();rows=[];renderEmployee()}
 renderEmployee();
 </script>
 </body></html>
