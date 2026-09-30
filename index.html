@@ -65,8 +65,32 @@ function renderEmployee(){
  <div style="margin-top:20px;padding:15px;border-radius:14px;background:#fffaf0;border:1px solid #f1dfad;font-size:12px;color:#685b3b"><b>Blocked dates</b><br>10 Nov • Holiday<br>11 Nov • Holiday<br>14 Nov • Weekend Holiday<br>15 Nov • Weekend Holiday</div>
  <div id="status" style="margin-top:18px"></div></div></div></main></div>`;
 }
-function toggleDay(d){if(isHoliday(d))return;selected.has(d)?selected.delete(d):selected.add(d);renderEmployee()}
-function clearSelected(){selected.clear();renderEmployee()}
+function getEmployeeFormValues(){
+ const name=document.getElementById("empName")?.value||"";
+ const email=document.getElementById("empEmail")?.value||"";
+ const note=document.getElementById("empNote")?.value||"";
+ return {name,email,note};
+}
+function restoreEmployeeFormValues(v){
+ if(!v)return;
+ const name=document.getElementById("empName"),email=document.getElementById("empEmail"),note=document.getElementById("empNote");
+ if(name)name.value=v.name||"";
+ if(email)email.value=v.email||"";
+ if(note)note.value=v.note||"";
+}
+function toggleDay(d){
+ if(isHoliday(d))return;
+ const formValues=getEmployeeFormValues();
+ selected.has(d)?selected.delete(d):selected.add(d);
+ renderEmployee();
+ restoreEmployeeFormValues(formValues);
+}
+function clearSelected(){
+ const formValues=getEmployeeFormValues();
+ selected.clear();
+ renderEmployee();
+ restoreEmployeeFormValues(formValues);
+}
 
 async function submitLeave(){
  const name=document.getElementById("empName").value.trim(),email=document.getElementById("empEmail").value.trim().toLowerCase(),note=document.getElementById("empNote").value.trim();
