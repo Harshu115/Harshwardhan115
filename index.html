@@ -74,22 +74,24 @@ async function submitLeave(){
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return toast("Please enter a valid official email ID.");
  if(!selected.size)return toast("Please select at least one leave date.");
 
- const payload={full_name:name,official_email:email,leave_days:[...selected].sort(),note:note||null};
  try{
-   const res=await fetch(SUPABASE_URL+"/rest/v1/diwali_leave_submissions",{
+   const res=await fetch(SUPABASE_URL+"/rest/v1/rpc/submit_diwali_leave",{
      method:"POST",
      headers:{
        "apikey":SUPABASE_KEY,
-       "Authorization":"Bearer "+SUPABASE_KEY,
        "Content-Type":"application/json",
-       "Accept":"application/json",
-       "Prefer":"return=minimal"
+       "Accept":"application/json"
      },
-     body:JSON.stringify(payload)
+     body:JSON.stringify({
+       p_full_name:name,
+       p_official_email:email,
+       p_leave_days:[...selected].sort(),
+       p_note:note||null
+     })
    });
    if(!res.ok){
      const raw=await res.text();
-     console.error("Supabase insert failed:",res.status,raw);
+     console.error("Supabase RPC failed:",res.status,raw);
      let msg=raw;
      try{const j=JSON.parse(raw);msg=j.message||j.hint||j.details||j.error||raw}catch(_){}
      return toast("Submission failed: "+msg);
