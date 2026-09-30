@@ -40,7 +40,7 @@ const toast=s=>{let t=document.getElementById("toast");t.textContent=s;t.style.d
 const esc=s=>{let d=document.createElement("div");d.textContent=s??"";return d.innerHTML};
 const isHoliday=d=>!!HOLIDAYS[d];
 
-function header(){return `<div class="topbar"><div class="brand"><img class="logo" src="${logo}"><div><strong>HYOSUNG</strong><span>Diwali Leave Management • 2026</span></div></div><div class="nav"><button class="logout" onclick="adminLoginView()">Admin</button></div></div>`}
+function header(){return `<div class="topbar"><div class="brand"><img class="logo" src="${LOGO}"><div><strong>HYOSUNG</strong><span>Diwali Leave Management • 2026</span></div></div><div class="nav"><button class="logout" onclick="adminLoginView()">Admin</button></div></div>`}
 
 function calendar(){
  let h=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(x=>`<div class="dow">${x}</div>`).join("");
@@ -73,14 +73,35 @@ async function submitLeave(){
  if(name.length<2)return toast("Please enter your full name.");
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return toast("Please enter a valid official email ID.");
  if(!selected.size)return toast("Please select at least one leave date.");
- const client=requireDb(); if(!client)return;
- const {error}=await client.from("diwali_leave_submissions").insert({full_name:name,official_email:email,leave_days:[...selected].sort(),note:note||null});
- if(error){console.error(error);return toast("Submission failed: "+error.message);}
- toast("🪔 Leave request submitted successfully.");
- selected.clear();renderEmployee();
- document.getElementById("status").innerHTML="<div style='padding:14px;border-radius:14px;background:#edf9f1;color:#176b3c;border:1px solid #bfe7cd'><b>✓ Submitted successfully</b><br>Your leave request is stored in the HYOSUNG system.</div>";
-}
 
+ const payload={full_name:name,official_email:email,leave_days:[...selected].sort(),note:note||null};
+ try{
+   const res=await fetch(SUPABASE_URL+"/rest/v1/diwali_leave_submissions",{
+     method:"POST",
+     headers:{
+       "apikey":SUPABASE_KEY,
+       "Authorization":"Bearer "+SUPABASE_KEY,
+       "Content-Type":"application/json",
+       "Accept":"application/json",
+       "Prefer":"return=minimal"
+     },
+     body:JSON.stringify(payload)
+   });
+   if(!res.ok){
+     const raw=await res.text();
+     console.error("Supabase insert failed:",res.status,raw);
+     let msg=raw;
+     try{const j=JSON.parse(raw);msg=j.message||j.hint||j.details||j.error||raw}catch(_){}
+     return toast("Submission failed: "+msg);
+   }
+   toast("🪔 Leave request submitted successfully.");
+   selected.clear();
+   renderEmployee();
+ }catch(err){
+   console.error(err);
+   toast("Submission failed: "+(err.message||"Network error"));
+ }
+}
 function adminLoginView(){document.getElementById("root").innerHTML=`<div class="login"><div class="loginbox"><img class="loginlogo" src="${logo}"><h1>Admin Portal</h1><div class="sub">HYOSUNG • Diwali Leave Management 2026</div><div class="field"><label>ADMIN EMAIL</label><input id="ae" type="email" placeholder="admin@company.com"></div><div class="field"><label>PASSWORD</label><input id="ap" type="password" placeholder="Password"></div><button class="btn primary loginbtn" onclick="adminLogin()">Sign in to Dashboard →</button><button class="btn secondary loginbtn" onclick="renderEmployee()">← Back to Employee Form</button><div class="hint">Admin access uses Supabase Auth. The account must have profiles.role = admin.</div></div></div>`}
 async function adminLogin(){
  const email=document.getElementById("ae").value.trim(),password=document.getElementById("ap").value;
