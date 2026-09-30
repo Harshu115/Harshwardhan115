@@ -32,7 +32,7 @@ let db=null; function getDb(){ if(!db && window.supabase?.createClient){ db=wind
 function requireDb(){const c=getDb();if(!c){toast("Supabase is not available. Please check your internet connection and reload.");return null}return c}
 const START="2026-11-04",END="2026-11-18";
 const HOLIDAYS={"2026-11-10":"Holiday","2026-11-11":"Holiday","2026-11-14":"Weekend Holiday","2026-11-15":"Weekend Holiday"};
-const valid=(()=>{let a=[],d=new Date(START+"T00:00:00"),e=new Date(END+"T00:00:00");while(d<=e){a.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1)}return a})();
+const valid=(()=>{let a=[],d=new Date(START+"T00:00:00"),e=new Date(END+"T00:00:00");while(d<=e){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");a.push(y+"-"+m+"-"+day);d.setDate(d.getDate()+1)}return a})();
 let selected=new Set(),rows=[];
 
 const fmt=d=>new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
